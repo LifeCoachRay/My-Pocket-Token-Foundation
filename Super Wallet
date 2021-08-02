@@ -1,0 +1,19 @@
+pragma solidity ^0.4.7;
+
+contract SuperWallet {
+    
+     function() payable external {
+    }
+    
+     function sendEther(address sender) external payable { 
+        
+     } 
+     
+     function receiveEther(address receiver) payable {
+ 
+     }
+     
+     function balanceOf(address check) public {
+         
+     }
+}    
