@@ -1,0 +1,75 @@
+// SPDX-License-Identifier: MIT
+
+pragma solidity ^0.8.0;
+
+import '@openzeppelin/contracts/token/ERC721/ERC721.sol';
+import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+
+contract kandinftpocket is ERC721 {
+    
+  address public artist;
+  address public txFeeToken;
+  uint public txFeeAmount;
+  mapping(address => bool) public excludedList;
+
+  constructor(
+    address _artist, 
+    address _txFeeToken,
+    uint _txFeeAmount
+  ) ERC721('My NFT', 'ABC') {
+    artist = _artist;
+    txFeeToken = _txFeeToken;
+    txFeeAmount = _txFeeAmount;
+    excludedList[_artist] = true; 
+    _mint(artist, 0);
+  }
+  
+  function setExcluded(address excluded, bool status) external {
+    require(msg.sender == artist, 'artist only');
+    excludedList[excluded] = status;
+  }
+  
+   /**
+     * @dev See {IERC721-transferFrom}.
+     */
+    function transferFrom(
+        address from,
+        address to,
+        uint256 tokenId
+    ) public virtual override {
+        //solhint-disable-next-line max-line-length
+        require(_isApprovedOrOwner(_msgSender(), tokenId), "ERC721: transfer caller is not owner or approved");
+
+        _transfer(from, to, tokenId);
+    }
+
+    /**
+     * @dev See {IERC721-safeTransferFrom}.
+     */
+    function safeTransferFrom(
+        address from,
+        address to,
+        uint256 tokenId
+    ) public virtual override {
+        safeTransferFrom(from, to, tokenId, "");
+    }
+
+    /**
+     * @dev See {IERC721-safeTransferFrom}.
+     */
+    function safeTransferFrom(
+        address from,
+        address to,
+        uint256 tokenId,
+        bytes memory _data
+    ) public virtual override {
+        require(_isApprovedOrOwner(_msgSender(), tokenId), "ERC721: transfer caller is not owner or approved");
+        _safeTransfer(from, to, tokenId, _data);
+    }
+
+    function _payTxFee(address from) internal {
+    IERC20 token = IERC20(txFeeToken);
+    token.transferFrom(from, artist, txFeeAmount);
+  }
+
+}
