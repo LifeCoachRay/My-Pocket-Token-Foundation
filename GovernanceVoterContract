@@ -1,0 +1,255 @@
+// SPDX-License-Identifier: MIT
+
+pragma solidity >=0.7.0 <0.9.0;
+
+/** 
+ * @title Governance
+ * @dev Implements voting process along with vote delegation
+ */
+contract Governance {
+   
+    struct Voter {
+        uint weight; // weight is accumulated by delegation
+        bool voted;  // if true, that person already voted
+        address delegate; // person delegated to
+        uint vote;   // index of the voted proposal
+    }
+
+    struct Proposals {
+        // If you can limit the length to a certain number of bytes, 
+        // always use one of bytes1 to bytes32 because they are much cheaper
+        bytes32 name;   // short name (up to 32 bytes)
+        uint voteCount; // number of accumulated votes
+    }
+    
+    struct Proposal {
+        uint256 proposalId;
+        address userAddress;
+        string proposalString;
+        uint256 claimAmount;
+        uint256 yesVotes;
+        uint256 noVotes;
+        bool voting;
+        bool passed;
+        uint256 endTime;
+    }
+    
+    struct Member {
+        address memberAddress;
+        int256 lat;
+        int256 long;
+        uint256 votes;
+        uint256 proposals;
+    }
+    
+    struct ProposalId {
+        uint256 proposalId;
+       uint endProposalVoting;
+    }
+
+    address public chairperson;
+
+  mapping(uint256 => ProposalId) public proposalId;
+   
+    mapping(address => Voter) public voters;
+    
+    
+    mapping(uint256 => Proposals) public proposalsMapping;
+    
+    mapping(uint256 => mapping(address => bool)) public userVoteForProposal;
+    
+    mapping(address => Member) public daoMemberMapping;
+
+    Proposals[] public proposals;
+
+    /** 
+     * @dev Create a new ballot to choose one of 'proposalNames'.
+     * @param proposalNames names of proposals
+     */
+    constructor(bytes32[] memory proposalNames) {
+        chairperson = msg.sender;
+        voters[chairperson].weight = 1;
+
+        for (uint i = 0; i < proposalNames.length; i++) {
+            // 'Proposal({...})' creates a temporary
+            // Proposal object and 'proposals.push(...)'
+            // appends it to the end of 'proposals'.
+            proposals.push(Proposals({
+                name: proposalNames[i],
+                voteCount: 0
+            }));
+        }
+    }
+    
+    modifier ChainlinkKeeper() {
+         require(msg.sender == 0xbbbaaD77908e7143B6b4D5922fd201cd08568f63, "You are not ChainlinkKeeper");
+        _;
+    }
+    
+    modifier daoMember() {
+       // require(countVotes(daoInsureTokenAddress, msg.sender) > 0, "You are not a DAO member");
+        _;
+    }
+    
+    modifier onlyAdmin() {
+        require(msg.sender == 0xbbbaaD77908e7143B6b4D5922fd201cd08568f63, "You are not an admin");
+        _;
+    }
+    
+   
+    
+    function returnProposalById(uint256 _proposalId) public view returns(Proposals memory) {
+        return (proposalsMapping[_proposalId]);
+    }
+    
+    /** 
+     * @dev Give 'voter' the right to vote on this ballot. May only be called by 'chairperson'.
+     * @param voter address of voter
+     */
+    function giveRightToVote(address voter) public {
+        require(
+            msg.sender == chairperson,
+            "Only chairperson can give right to vote."
+        );
+        require(
+            !voters[voter].voted,
+            "The voter already voted."
+        );
+        require(voters[voter].weight == 0);
+        voters[voter].weight = 1;
+    }
+
+    /**
+     * @dev Delegate your vote to the voter 'to'.
+     * @param to address to which vote is delegated
+     */
+    function delegate(address to) public {
+        Voter storage sender = voters[msg.sender];
+        require(!sender.voted, "You already voted.");
+        require(to != msg.sender, "Self-delegation is disallowed.");
+
+        while (voters[to].delegate != address(0)) {
+            to = voters[to].delegate;
+
+            // We found a loop in the delegation, not allowed.
+            require(to != msg.sender, "Found loop in delegation.");
+        }
+        sender.voted = true;
+        sender.delegate = to;
+        Voter storage delegate_ = voters[to];
+        if (delegate_.voted) {
+            // If the delegate already voted,
+            // directly add to the number of votes
+            proposals[delegate_.vote].voteCount += sender.weight;
+        } else {
+            // If the delegate did not vote yet,
+            // add to her weight.
+            delegate_.weight += sender.weight;
+        }
+    }
+
+    /**
+     * @dev Give your vote (including votes delegated to you) to proposal 'proposals[proposal].name'.
+     * @param proposal index of proposal in the proposals array
+     */
+    function vote(uint proposal) public {
+        Voter storage sender = voters[msg.sender];
+        require(sender.weight != 0, "Has no right to vote");
+        require(!sender.voted, "Already voted.");
+        sender.voted = true;
+        sender.vote = proposal;
+
+        // If 'proposal' is out of the range of the array,
+        // this will throw automatically and revert all
+        // changes.
+        proposals[proposal].voteCount += sender.weight;
+    }
+
+    /** 
+     * @dev Computes the winning proposal taking all previous votes into account.
+     * @return winningProposal_ index of winning proposal in the proposals array
+     */
+    function winningProposal() public view
+            returns (uint winningProposal_)
+    {
+        uint winningVoteCount = 0;
+        for (uint p = 0; p < proposals.length; p++) {
+            if (proposals[p].voteCount > winningVoteCount) {
+                winningVoteCount = proposals[p].voteCount;
+                winningProposal_ = p;
+            }
+        }
+    }
+
+    /** 
+     * @dev Calls winningProposal() function to get the index of the winner contained in the proposals array and then
+     * @return winnerName_ the name of the winner
+     */
+    function winnerName() public view
+            returns (bytes32 winnerName_)
+    {
+        winnerName_ = proposals[winningProposal()].name;
+    }
+    
+    
+    function endProposalVoting(uint256 _proposalId) public view ChainlinkKeeper {
+       // proposalsMapping[_proposalId].voting = false;
+        settleOutcome(_proposalId);
+    }
+    
+    
+    function addDaoMember(address _memberAddress, int256 _lat, int256 _long) public daoMember {
+        daoMemberMapping[_memberAddress] = Member({
+            memberAddress : _memberAddress,
+            lat : _lat,
+            long : _long,
+            votes : 0,
+            proposals : 0
+        });
+    }
+
+
+    
+    function removeDaoMember(address _memberAddress) public daoMember {
+        delete daoMemberMapping[_memberAddress];
+    }
+    
+    function settleOutcome(uint256 _proposalId) public view {
+     // if(proposalsMapping[_proposalId].yesVotes > proposalsMapping[_proposalId].noVotes) {
+           // proposalsMapping[_proposalId].passed = true;
+        //(ProposalId).withdrawAmount(proposalsMapping[_proposalId].userAddress , proposalsMapping[_proposalId].claimAmount);
+     //}
+       //else if (proposalsMapping[_proposalId].yesVotes <= proposalsMapping[_proposalId].noVotes) {
+         //   proposalsMapping[_proposalId].passed = false;
+        }
+        
+    
+    
+    
+    function claimProposal(uint256 _proposalId) public view  {
+       // require(endProposalVoting >= _proposalId[_proposalId].endTime, "Voting is still active");
+       //require (endProposalVoting(_proposalId));
+    }
+    
+}
+
+/** 
+* Copyright CENTRE SECZ 2018 
+*
+* Permission is hereby granted, free of charge, to any person obtaining a copy 
+* of this software and associated documentation files (the "Software"), to deal 
+* in the Software without restriction, including without limitation the rights 
+* to use, copy, modify, merge, publish, distribute, sublicense, and/or sell 
+* copies of the Software, and to permit persons to whom the Software is furnished to 
+* do so, subject to the following conditions:
+*
+* The above copyright notice and this permission notice shall be included in all 
+* copies or substantial portions of the Software.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
+* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE 
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+* WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN 
+* CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+*/
