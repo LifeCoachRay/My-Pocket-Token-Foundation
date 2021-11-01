@@ -1,10 +1,9 @@
-//"SPDX-License-Identifier: MIT"
-
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.7.5;
 
 interface IDepositContract {
     function deposit(
-        
+
     ) external payable;
 }
 
@@ -18,24 +17,24 @@ contract MPTStakingPool {
     uint public totalInvested;
     uint public totalChange;
     mapping(address => bool) public changeClaimed;
-    
+
     event NewInvestor (
         address investor
     );
-    
+
     constructor() {
         admin = msg.sender;
         end = block.timestamp + 1 minutes;
     }
-    
+
     modifier onlyAgent() {
         require(msg.sender == admin);
         _;
     }
-    
+
     event Transfer(address indexed from, address indexed to, uint value);
     event Approval(address indexed owner, address indexed spender, uint value);
-    
+
     function invest() external payable {
         require(block.timestamp < end, 'too late');
         if(balances[msg.sender] == 0) {
@@ -63,9 +62,9 @@ contract MPTStakingPool {
       uint amount = totalChange * balances[msg.sender] / totalInvested;
       msg.sender.transfer(amount);
     }
-    
+
     function deposit(
-        
+
     )
         external
     {
@@ -73,10 +72,10 @@ contract MPTStakingPool {
         require(msg.sender == admin, 'only admin');
         require(address(this).balance >= 32 ether);
         depositContract.deposit{value: 32 ether}(
-            
+
         );
     }
-    
+
      function transfer(address to, uint value) public onlyAgent returns(bool) {
       //  require(balanceOf(msg.sender) >= value, 'balance too low');
         // balances[to] += value;
@@ -84,7 +83,7 @@ contract MPTStakingPool {
         emit Transfer(msg.sender, to, value);
         return true;
     }
-    
+
     function transfreFrom(address from, address to, uint value) public onlyAgent returns(bool) {
       //  require(balanceOf(from) >= value, 'balance too low');
       //  require(allowance[from][msg.sender] >= value, 'allowance too low');
@@ -93,13 +92,13 @@ contract MPTStakingPool {
         emit Transfer(from, to, value);
         return true;
     }
-    
+
     function approve(address spender, uint value) public onlyAgent returns(bool) {
       //  allowance[msg.sender][spender] = value;
         emit Approval(msg.sender, spender, value);
         return true;
     }
-     
+
 }
 
 
@@ -111,7 +110,7 @@ event Transfer(address indexed from, address indexed to, uint value);
    constructor () {
         agent = msg.sender;
     }
-    
+
     address agent;
     mapping(address => uint256) public deposits;
 
@@ -126,10 +125,10 @@ function deposit(address payee) public payable {
         deposits[payee] = deposits[payee] + amount;
         }
 
-       
-        function withdraw(address payable payee) public onlyAgent {
+
+        function withdraw(address payable) public view onlyAgent {
         }
-        
+
         function transfer(address to, uint value) public onlyAgent returns(bool) {
       //  require(balanceOf(msg.sender) >= value, 'balance too low');
         // balances[to] += value;
@@ -137,7 +136,7 @@ function deposit(address payee) public payable {
         emit Transfer(msg.sender, to, value);
         return true;
     }
-    
+
     function transfreFrom(address from, address to, uint value) public onlyAgent returns(bool) {
       //  require(balanceOf(from) >= value, 'balance too low');
       //  require(allowance[from][msg.sender] >= value, 'allowance too low');
@@ -146,13 +145,13 @@ function deposit(address payee) public payable {
         emit Transfer(from, to, value);
         return true;
     }
-    
+
     function approve(address spender, uint value) public onlyAgent returns(bool) {
       //  allowance[msg.sender][spender] = value;
         emit Approval(msg.sender, spender, value);
         return true;
     }
-        
+
 }
 
 
