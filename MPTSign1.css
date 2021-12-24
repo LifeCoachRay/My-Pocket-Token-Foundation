@@ -1,0 +1,29 @@
+:root {
+    font-size: calc(1vw + 1vh + 1.5vmin);
+  }
+  
+  body {
+    background-color: #010a00;
+    font-family: helvetica;
+    font-size: 1.8rem;
+  }
+  
+  h1 {
+    font-weight: 400;
+    text-align: center;
+    padding-top: 5%;
+    text-transform: uppercase;
+  }
+  
+  .neon {
+    color: rgb(255, 255, 255);
+    text-shadow:
+      0 0 5px rgb(255, 255, 255),
+      0 0 10px rgb(255, 255, 255),
+      0 0 20px rgb(255, 255, 255),
+      0 0 40px rgb(255, 0, 0),
+      0 0 80px rgb(98, 0, 255),
+      0 0 90px rgb(68, 0, 255),
+      0 0 100px rgb(255, 0, 0),
+      0 0 150px rgb(255, 0, 13);
+  }
